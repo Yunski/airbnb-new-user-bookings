@@ -1,0 +1,18 @@
+name: cos424-project
+channels:
+  - https://conda.anaconda.org/menpo
+  - conda-forge
+dependencies:
+  - python==3.6.1
+  - numpy
+  - pandas
+  - matplotlib
+  - jupyter
+  - scikit-learn
+  - scipy
+  - pip:
+    - argparse
+    - feather-format
+    - imbalanced-learn
+    - xgboost
+    - tqdm
