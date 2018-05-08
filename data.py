@@ -4,9 +4,11 @@ import numpy as np
 import pandas as pd
 
 def get_train(data_dir):
-    train_features = pd.read_feather(os.path.join(data_dir, "train.feather")).as_matrix()
+    train = pd.read_feather(os.path.join(data_dir, "train.feather"))
+    train_features = train.as_matrix()
+    feature_labels = train.columns.copy()
     train_labels = np.load(os.path.join(data_dir, "train_labels.npy"))
-    return train_features, train_labels
+    return train_features, train_labels, feature_labels
 
 def get_test(data_dir):
     test_features = pd.read_feather(os.path.join(data_dir, "test.feather")).as_matrix()
