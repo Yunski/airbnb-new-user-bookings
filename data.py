@@ -130,7 +130,7 @@ def preprocess(data_dir, verbose=False):
                   'signup_app', 'first_device_type', 'first_browser']
     for col in categories:
         full_users[col] = full_users[col].astype('category')
-    full_users = pd.get_dummies(full_users, columns=categories)
+    full_users = pd.get_dummies(full_users, columns=categories, prefix=categories)
     if verbose:
         print(full_users.shape) 
         print("Impute missing...")
