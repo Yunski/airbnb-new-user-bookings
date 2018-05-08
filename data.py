@@ -3,6 +3,23 @@ import os
 import numpy as np
 import pandas as pd
 
+def get_train(data_dir):
+    train_features = pd.read_feather(os.path.join(data_dir, "train.feather")).as_matrix()
+    train_labels = np.load(os.path.join(data_dir, "train_labels.npy"))
+    return train_features, train_labels
+
+def get_test(data_dir):
+    test_features = pd.read_feather(os.path.join(data_dir, "test.feather")).as_matrix()
+    return test_features
+
+def get_ids(data_dir):
+    train_ids = pd.read_csv(os.path.join(data_dir, "train_ids.csv")).as_matrix()
+    test_ids = pd.read_csv(os.path.join(data_dir, "test_ids.csv")).as_matrix()
+    return train_ids, test_ids
+
+def get_country_names(data_dir):
+    return np.load(os.path.join(data_dir, "country_labels.npy"))
+
 def preprocess(data_dir, verbose=False):
     if verbose:
         print("Reading csvs...")
@@ -29,11 +46,31 @@ def preprocess(data_dir, verbose=False):
     day = full_users['timestamp_first_active'].astype(str).str[6:8]
     full_users['timestamp_first_active'] = year + "-" +  month + "-" + day
     full_users['timestamp_first_active'] = pd.to_datetime(full_users['timestamp_first_active'])
+
+    full_users['timestamp_first_active_year'] = full_users['timestamp_first_active'].dt.year
+    full_users['timestamp_first_active_month'] = full_users['timestamp_first_active'].dt.month
+    full_users['timestamp_first_active_day'] = full_users['timestamp_first_active'].dt.day
+    
     full_users['date_account_created'] = pd.to_datetime(full_users['date_account_created'])
+
+    full_users['date_account_created_year'] = full_users['date_account_created'].dt.year
+    full_users['date_account_created_month'] = full_users['date_account_created'].dt.month
+    full_users['date_account_created_day'] = full_users['date_account_created'].dt.day
+
     full_users['date_first_booking'] = pd.to_datetime(full_users['date_first_booking'])
+
+    full_users['date_first_booking_year'] = full_users['date_first_booking'].dt.year
+    full_users['date_first_booking_month'] = full_users['date_first_booking'].dt.month
+    full_users['date_first_booking_day'] = full_users['date_first_booking'].dt.day
+    full_users['date_first_booking_year'].fillna(-1, inplace=True)
+    full_users['date_first_booking_month'].fillna(-1, inplace=True)
+    full_users['date_first_booking_day'].fillna(-1, inplace=True)
+    
     full_users['account_created_first_active_elapsed'] = (full_users['date_account_created'] - full_users['timestamp_first_active']).dt.days
     full_users['first_booking_first_active_elapsed'] = (full_users['date_first_booking'] - full_users['timestamp_first_active']).dt.days
+    full_users['first_booking_first_active_elapsed'].fillna(-1, inplace=True)
     full_users['first_booking_account_created_elapsed'] = (full_users['date_first_booking'] - full_users['date_account_created']).dt.days
+    full_users['first_booking_account_created_elapsed'].fillna(-1, inplace=True)
     full_users.drop(columns=['date_account_created', 'date_first_booking', 'timestamp_first_active'], inplace=True)
 
     # Join countries and age buckets
@@ -43,6 +80,10 @@ def preprocess(data_dir, verbose=False):
     min_year, max_year = 1915, 2015
     full_users['age'].where(full_users['age'] < min_year, max_year - full_users['age'], inplace=True)
     full_users.loc[full_users['age'] < 0, 'age'] = 0
+    mean = full_users['age'].mean()
+    std = full_users['age'].std()
+    n_missing = full_users['age'].isnull().sum()
+    full_users.loc[full_users['age'].isnull(), 'age'] = np.random.normal(loc=mean, scale=std, size=n_missing).astype(int)
     bkt_labels = ["0-4", "5-9", "10-14", "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54", "55-59", "60-64", "65-69", "70-74", "75-79", "80-84", "85-89", "90-94", "95-99", "100+"]
     bins = [0, 4, 9, 14, 19, 24, 29, 34, 39, 44, 49, 54, 59, 64, 69, 74, 79, 84, 89, 94, 99, full_users['age'].max()]
     full_users['age_bucket'] = pd.cut(full_users['age'], bins=bins, labels=bkt_labels, right=True)    
@@ -52,6 +93,10 @@ def preprocess(data_dir, verbose=False):
     country_age_buckets.drop(columns=['lat_destination', 'lng_destination', 'year'], inplace=True)
     country_age_buckets['language'] = country_age_buckets['destination_language '].str[:2]
     country_age_buckets = country_age_buckets.groupby(by=["age_bucket", "gender", "language"]).sum()
+    country_age_buckets['distance_km'].fillna(-1, inplace=True)
+    country_age_buckets['destination_km2'].fillna(-1, inplace=True) 
+    country_age_buckets['language_levenshtein_distance'].fillna(-1, inplace=True)
+    country_age_buckets['population_in_thousands'].fillna(-1, inplace=True)
     country_age_buckets.reset_index(inplace=True)
     full_users = pd.merge(full_users, country_age_buckets, on=['age_bucket', 'language', 'gender'], how='left')
  
@@ -90,8 +135,7 @@ def preprocess(data_dir, verbose=False):
         print(full_users.shape) 
         print("Impute missing...")
 
-    full_users['age'].fillna(full_users['age'].mode()[0], inplace=True)
-    full_users.fillna(0, inplace=True)
+    full_users.fillna(-1, inplace=True)
 
     if verbose:
         print(full_users.shape)
@@ -105,8 +149,8 @@ def preprocess(data_dir, verbose=False):
     train_users.reset_index(inplace=True)
     test_users.reset_index(inplace=True)
 
-    train_ids.to_csv(os.path.join(data_dir, "train_ids.csv"), index=False) 
-    test_ids.to_csv(os.path.join(data_dir, "test_ids.csv"), index=False)
+    train_ids.to_csv(os.path.join(data_dir, "train_ids.csv"), header=['id'], index=False) 
+    test_ids.to_csv(os.path.join(data_dir, "test_ids.csv"), header=['id'], index=False)
 
     train_users.to_feather(os.path.join(data_dir, "train.feather"))
     test_users.to_feather(os.path.join(data_dir, "test.feather"))
