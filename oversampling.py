@@ -33,7 +33,7 @@ def preprocess(data_dir, model, oversampling_method, k_folds, verbose=True):
             print("Processing Fold {} out of {}".format(counter, k_folds))
             print(" ")
             counter += 1
-            
+
         X_trainCV, X_testCV = X_train[train_index], X_train[test_index]
         Y_trainCV, Y_testCV = Y_train[train_index], Y_train[test_index]
 
@@ -95,8 +95,8 @@ def preprocess(data_dir, model, oversampling_method, k_folds, verbose=True):
                 print("Accuracy for RidgeClassifier is {}".format(accuracy))
                 print("Time taken: {}".format(time.time()-curr_time))
             avg_rr += accuracy
-            end_time = start - time.time()
-
+            end_time = curr_time - time.time()
+    print(" ")
     print("Total time taken for xxx is {}".format(end_time))
     if (model == "both"):
         print("DecisionTreeClassifier CV accuracy: {}".format(avg_df/5.0))
