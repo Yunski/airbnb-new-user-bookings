@@ -42,9 +42,9 @@ def evaluate(y_true, y_score):
     y_pred = np.argmax(y_score, axis=1)
     ndcg = ndcg_score(y_true, y_score)
     acc = accuracy_score(y_true, y_pred)
-    precision = precision_score(y_true, y_pred, average='micro') 
-    recall = recall_score(y_true, y_pred, average='micro')
-    f1 = f1_score(y_true, y_pred, average='micro')
+    precision = precision_score(y_true, y_pred, average='macro') 
+    recall = recall_score(y_true, y_pred, average='macro')
+    f1 = f1_score(y_true, y_pred, average='macro')
     vals = [ndcg, acc, precision, recall, f1]
     return {metric:val for metric, val in zip(metrics, vals)}
 
