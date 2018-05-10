@@ -38,19 +38,23 @@ def ndcg_score(y_true, y_score, k=5):
     return np.sum((2**rel-1) / discounts, axis=1)   
 
 def evaluate(y_true, y_score):
-    metrics = ["ndcg", "acc", "precision", "recall", "macro_precision", "macro_recall", "f1"]
+    metrics = ["ndcg", "ndcg_fold", "acc", "precision", "recall", "f1", "macro_precision", "macro_recall", "macro_f1"]
     y_pred = np.argmax(y_score, axis=1)
     ndcg = ndcg_score(y_true, y_score)
+    ndcg_fold = np.mean(ndcg)
     acc = accuracy_score(y_true, y_pred)
     conf_matrix = confusion_matrix(y_true, y_pred)
-    tp = np.diag(conf_matrix)
-    col_sum = np.sum(axis=0)
-    row_sum = np.sum(axis=1)
+    tp = np.diag(conf_matrix).astype(np.float32)
+    col_sum = np.sum(conf_matrix, axis=0)
+    row_sum = np.sum(conf_matrix, axis=1)
     precision = np.divide(tp, col_sum, out=np.zeros_like(tp), where=col_sum!=0)
     recall = np.divide(tp, row_sum, out=np.zeros_like(tp), where=row_sum!=0)
     macro_precision = np.mean(precision)
     macro_recall = np.mean(recall)
-    f1 = np.mean(2 * (precision * recall) / (precision + recall))
-    vals = [ndcg, acc, precision, recall, macro_precision, macro_recall, f1]
-    return {metric:val for metric, val in zip(metrics, vals)}
+    f1_num = 2 * (precision * recall)
+    f1_denom = precision + recall
+    f1 = np.divide(f1_num, f1_denom, out=np.zeros_like(f1_num), where=f1_denom!=0)
+    macro_f1 = np.mean(f1)
+    vals = [ndcg, ndcg_fold, acc, precision, recall, f1, macro_precision, macro_recall, macro_f1]
+    return {metric: np.around(val, 4) for metric, val in zip(metrics, vals)}
 
