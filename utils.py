@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.utils import shuffle
 
 def get_train(data_dir, one_hot=True):
     if one_hot:
@@ -12,6 +13,7 @@ def get_train(data_dir, one_hot=True):
     train_features = train.as_matrix()
     feature_labels = train.columns.copy().tolist()
     train_labels = np.load(os.path.join(data_dir, "train_labels.npy"))
+    train_features, train_labels = shuffle(train_features, train_labels)
     return train_features, train_labels, feature_labels
 
 def get_test(data_dir, one_hot=True):

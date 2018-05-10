@@ -21,17 +21,17 @@ def train(model, oversampling_method, k_folds, data_dir, results_dir, device='cp
     if verbose:
         print("Using device: {}".format(device))
         print("Reading train data in...")
-    X_train, Y_train, _ = get_train(data_dir)
+    X_train, Y_train, feature_labels = get_train(data_dir)
     if verbose:
         print("Successfully loaded data")
 
     print("Starting Cross-Validation with {} folds...".format(k_folds))
-    kf = KFold(n_splits=k_folds)
+    kf = KFold(n_splits=k_folds, shuffle=True)
     kf.get_n_splits(X_train)
     if device == 'cpu':
-        params = {"objective": "multi:softmax", "num_class": 12, "tree_method": "hist", "silent": 1}
+        params = {"objective": "multi:softprob", "num_class": 12, "tree_method": "hist", "silent": 1}
     else:
-        params = {"objective": "multi:softmax", 
+        params = {"objective": "multi:softprob", 
                   "num_class": 12,
                   "gpu_id": 0,
                   "max_bin": 16,
@@ -79,11 +79,11 @@ def train(model, oversampling_method, k_folds, data_dir, results_dir, device='cp
             result = evaluate(Y_testCV, Y_probs)
             pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" )) 
         elif model == "xgb":
-            X_train_xgb = xgb.DMatrix(X_train_resampled, Y_train_resampled)
-            X_test_xgb  = xgb.DMatrix(X_testCV)
+            X_train_xgb = xgb.DMatrix(X_train_resampled, Y_train_resampled, feature_names=feature_labels)
+            X_test_xgb  = xgb.DMatrix(X_testCV, feature_names=feature_labels)
             clf = xgb.train(params, X_train_xgb, 20)
             print("Time taken: {:.2f}".format(time.time()-curr_time))
-            Y_probs = clf.predict_proba(X_testCV)
+            Y_probs = clf.predict(X_test_xgb)
             result = evaluate(Y_testCV, Y_probs)
             pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" ))
         elif model == "randomforest":
@@ -104,11 +104,11 @@ def train(model, oversampling_method, k_folds, data_dir, results_dir, device='cp
                 print("Training {}...".format(model))
                 curr_time = time.time()
                 if model == "xgb":
-                    X_train_xgb = xgb.DMatrix(X_train_resampled, Y_train_resampled)
-                    X_test_xgb  = xgb.DMatrix(X_testCV)      
+                    X_train_xgb = xgb.DMatrix(X_train_resampled, Y_train_resampled, feature_names=feature_labels)
+                    X_test_xgb  = xgb.DMatrix(X_testCV, feature_names=feature_labels)      
                     clf = xgb.train(params, X_train_xgb, 20)
                     print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
-                    Y_probs = clf.predict_proba(X_testCV) 
+                    Y_probs = clf.predict(X_test_xgb) 
                     result = evaluate(Y_testCV, Y_probs)
                     pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" ))
                 elif model == "svm":
@@ -141,7 +141,7 @@ def train(model, oversampling_method, k_folds, data_dir, results_dir, device='cp
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Airbnb New User Booking Classification")
     parser.add_argument('-d', help='data directory', dest='data_dir', type=str, default="data")
-    parser.add_argument('-s', help='results save directory', dest='results_dir', type=str, default="data")
+    parser.add_argument('-s', help='results save directory', dest='results_dir', type=str, default="results")
     parser.add_argument('-m', help='model', dest="model", type=str, default="all", 
                         choices=["all", "logistic", "svm", "tree", "randomforest", "xgb"])
     parser.add_argument('-o', help='oversampling method', dest='oversampling_method', type=str, default="smote", 

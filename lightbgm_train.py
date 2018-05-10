@@ -20,7 +20,7 @@ def train(oversampling_method, k_folds, data_dir, results_dir, device='cpu', ver
     if verbose:
         print("Successfully loaded data.")
     print("Starting Cross-Validation with {} folds...".format(k_folds)) 
-    kf = KFold(n_splits=k_folds)
+    kf = KFold(n_splits=k_folds, shuffle=True)
     kf.get_n_splits(X_train)
     categories = ['age_bucket', 'gender', 'signup_method', 'signup_flow', 
                   'language', 'affiliate_channel', 'affiliate_provider', 
@@ -64,7 +64,6 @@ def train(oversampling_method, k_folds, data_dir, results_dir, device='cpu', ver
         gbm = lgb.train(params, lgb_train, num_boost_round=20)
         print("Time taken: {:.2f}".format(time.time()-curr_time))
         Y_probs = gbm.predict(X_testCV)
-        print(Y_probs[:10])
         result = evaluate(Y_testCV, Y_probs)
         pickle.dump(result, open(os.path.join(results_dir, "lgbm_fold_{}.p".format(k+1)), "wb" ))
 
