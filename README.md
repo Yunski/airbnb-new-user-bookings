@@ -44,7 +44,7 @@ optional arguments:
 ```
 To use lightgbm, run:
 ```
-$ python lightgbm.py
+$ python lightgbm_train.py
 ```
 Note that gpu is not faster for such a small dataset.
 
