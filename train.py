@@ -30,7 +30,11 @@ def train(model, oversampling_method, k_folds, data_dir, results_dir, device='cp
     kf = KFold(n_splits=k_folds, shuffle=True)
     kf.get_n_splits(X_train)
     if device == 'cpu':
-        params = {"objective": "multi:softprob", "num_class": 12, "tree_method": "hist", "silent": 1}
+        params = {"objective": "multi:softprob", 
+                  "num_class": 12, 
+                  "tree_method": "hist", 
+                  "n_jobs": 2,
+                  "silent": 1}
     else:
         params = {"objective": "multi:softprob", 
                   "num_class": 12,
@@ -73,14 +77,14 @@ def train(model, oversampling_method, k_folds, data_dir, results_dir, device='cp
             Y_probs = clf.predict_proba(X_testCV)
             result = evaluate(Y_testCV, Y_probs)
             print(result)
-            pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" )) 
+            pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
         elif model == "logistic":
             clf = LogisticRegression(penalty="l2", C=1).fit(X_train_resampled, Y_train_resampled)
             print("Time taken: {:.2f}".format(time.time()-curr_time))
             Y_probs = clf.predict_proba(X_testCV)
             result = evaluate(Y_testCV, Y_probs)
             print(result)
-            pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" )) 
+            pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
         elif model == "xgb":
             X_train_xgb = xgb.DMatrix(X_train_resampled, Y_train_resampled, feature_names=feature_labels)
             X_test_xgb  = xgb.DMatrix(X_testCV, feature_names=feature_labels)
@@ -89,28 +93,28 @@ def train(model, oversampling_method, k_folds, data_dir, results_dir, device='cp
             Y_probs = clf.predict(X_test_xgb)
             result = evaluate(Y_testCV, Y_probs)
             print(result)
-            pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" ))
+            pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
         elif model == "ada":
             clf = AdaBoostClassifier(n_estimators=30).fit(X_train_resampled, Y_train_resampled)
             print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
             Y_probs = clf.predict_proba(X_testCV)
             result = evaluate(Y_testCV, Y_probs)  
             print(result)
-            pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" ))
+            pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
         elif model == "forest":
             clf = RandomForestClassifier(n_estimators=22).fit(X_train_resampled, Y_train_resampled)
             print("Time taken: {:.2f}".format(time.time()-curr_time))
             Y_probs = clf.predict_proba(X_testCV)
             result = evaluate(Y_testCV, Y_probs)
             print(result)
-            pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" ))
+            pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
         elif model == "svm":
             clf = LinearSVC().fit(X_train_resampled, Y_train_resampled)
             print("Time taken: {:.2f}".format(time.time()-curr_time))
             Y_dist = -np.abs(clf.decision_function(X_testCV))
             result = evaluate(Y_testCV, Y_dist) 
             print(result)
-            pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" ))
+            pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
         else:
             models = ["xgb", "svm", "ada", "forest", "tree", "logistic"]
             for model in models:
@@ -124,42 +128,42 @@ def train(model, oversampling_method, k_folds, data_dir, results_dir, device='cp
                     Y_probs = clf.predict(X_test_xgb) 
                     result = evaluate(Y_testCV, Y_probs)
                     print(result)
-                    pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" ))
+                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
                 elif model == "svm":
                     clf = LinearSVC().fit(X_train_resampled, Y_train_resampled)
                     print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
                     Y_dist = -np.abs(clf.decision_function(X_testCV)) 
                     result = evaluate(Y_testCV, Y_dist)
                     print(result)
-                    pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" ))
+                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
                 elif model == "ada":
                     clf = AdaBoostClassifier(n_estimators=30).fit(X_train_resampled, Y_train_resampled)
                     print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
                     Y_probs = clf.predict_proba(X_testCV)
                     result = evaluate(Y_testCV, Y_probs)  
                     print(result)
-                    pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" ))
+                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
                 elif model == "forest":
                     clf = RandomForestClassifier(n_estimators=30).fit(X_train_resampled, Y_train_resampled)
                     print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
                     Y_probs = clf.predict_proba(X_testCV)
                     result = evaluate(Y_testCV, Y_probs)
                     print(result)
-                    pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" ))
+                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
                 elif model == "tree":
                     clf = DecisionTreeClassifier(min_samples_split=2, min_samples_leaf=5).fit(X_train_resampled, Y_train_resampled)
                     print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
                     Y_probs = clf.predict_proba(X_testCV)
                     result = evaluate(Y_testCV, Y_probs)
                     print(result)
-                    pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" ))
+                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
                 else:
                     clf = LogisticRegression(penalty="l2", C=1).fit(X_train_resampled, Y_train_resampled)
                     print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
                     Y_probs = clf.predict_proba(X_testCV)
                     result = evaluate(Y_testCV, Y_probs)
                     print(result)
-                    pickle.dump(result, open(os.path.join(results_dir, "{}_fold_{}.p".format(model, k+1)), "wb" ))
+                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
     print("Training took {:.2f}s.".format(time.time()-start_time))
     print("Finished.")
     

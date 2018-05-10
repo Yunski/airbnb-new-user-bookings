@@ -66,7 +66,7 @@ def train(oversampling_method, k_folds, data_dir, results_dir, device='cpu', ver
         Y_probs = gbm.predict(X_testCV)
         result = evaluate(Y_testCV, Y_probs)
         print(result)
-        pickle.dump(result, open(os.path.join(results_dir, "lgbm_fold_{}.p".format(k+1)), "wb" ))
+        pickle.dump(result, open(os.path.join(results_dir, "lgbm_{}_fold_{}.p".format(oversampling_method, k+1)), "wb" )) 
 
     print("Training took {:.2f}s.".format(time.time()-start_time))
     print("Finished.") 
