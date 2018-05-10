@@ -3,25 +3,6 @@ import os
 import numpy as np
 import pandas as pd
 
-def get_train(data_dir):
-    train = pd.read_feather(os.path.join(data_dir, "train.feather"))
-    train_features = train.as_matrix()
-    feature_labels = train.columns.copy()
-    train_labels = np.load(os.path.join(data_dir, "train_labels.npy"))
-    return train_features, train_labels, feature_labels
-
-def get_test(data_dir):
-    test_features = pd.read_feather(os.path.join(data_dir, "test.feather")).as_matrix()
-    return test_features
-
-def get_ids(data_dir):
-    train_ids = pd.read_csv(os.path.join(data_dir, "train_ids.csv")).as_matrix()
-    test_ids = pd.read_csv(os.path.join(data_dir, "test_ids.csv")).as_matrix()
-    return train_ids, test_ids
-
-def get_country_names(data_dir):
-    return np.load(os.path.join(data_dir, "country_labels.npy"))
-
 def preprocess(data_dir, verbose=False):
     if verbose:
         print("Reading csvs...")
@@ -132,24 +113,36 @@ def preprocess(data_dir, verbose=False):
                   'signup_app', 'first_device_type', 'first_browser']
     for col in categories:
         full_users[col] = full_users[col].astype('category')
+    full_users_lgb = full_users.copy()
+    categorical_columns = full_users_lgb.select_dtypes(['category']).columns
+    full_users_lgb[categorical_columns] = full_users_lgb[categorical_columns].apply(lambda x: x.cat.codes)
     full_users = pd.get_dummies(full_users, columns=categories, prefix=categories)
+    full_users.columns = full_users.columns.str.replace('\s+', '-')
     if verbose:
+        print("One-hot encoding")
         print(full_users.shape) 
+        print("Numeric category")
+        print(full_users_lgb.shape)
         print("Impute missing...")
 
     full_users.fillna(-1, inplace=True)
-
-    if verbose:
-        print(full_users.shape)
+    full_users_lgb.fillna(-1, inplace=True)
 
     ids = full_users['id']
     train_ids = ids[:n_train]
     test_ids = ids[n_train:]
     full_users.drop(columns='id', inplace=True)
+    full_users_lgb.drop(columns='id', inplace=True)
+
     train_users = full_users[:n_train]
     test_users = full_users[n_train:]
     train_users.reset_index(inplace=True)
     test_users.reset_index(inplace=True)
+    
+    train_users_lgb = full_users_lgb[:n_train]
+    test_users_lgb = full_users_lgb[n_train:]
+    train_users_lgb.reset_index(inplace=True)
+    test_users_lgb.reset_index(inplace=True)   
 
     train_ids.to_csv(os.path.join(data_dir, "train_ids.csv"), header=['id'], index=False) 
     test_ids.to_csv(os.path.join(data_dir, "test_ids.csv"), header=['id'], index=False)
@@ -157,7 +150,16 @@ def preprocess(data_dir, verbose=False):
     train_users.to_feather(os.path.join(data_dir, "train.feather"))
     test_users.to_feather(os.path.join(data_dir, "test.feather"))
 
+    train_users_lgb.to_feather(os.path.join(data_dir, "train_lgb.feather"))
+    test_users_lgb.to_feather(os.path.join(data_dir, "test_lgb.feather"))
+
     if verbose:
+        print("One-hot encoding")
+        print("train: {}".format(train_users.shape)) 
+        print("test: {}".format(test_users.shape)) 
+        print("Numeric category")
+        print("train: {}".format(train_users_lgb.shape)) 
+        print("test: {}".format(test_users_lgb.shape)) 
         print("Finished.")
 
 if __name__ == '__main__':
