@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
 from sklearn.utils import shuffle
 
 def get_train(data_dir, one_hot=True):
@@ -38,13 +38,19 @@ def ndcg_score(y_true, y_score, k=5):
     return np.sum((2**rel-1) / discounts, axis=1)   
 
 def evaluate(y_true, y_score):
-    metrics = ["ndcg", "acc", "precision", "recall", "F1"]
+    metrics = ["ndcg", "acc", "precision", "recall", "macro_precision", "macro_recall", "f1"]
     y_pred = np.argmax(y_score, axis=1)
     ndcg = ndcg_score(y_true, y_score)
     acc = accuracy_score(y_true, y_pred)
-    precision = precision_score(y_true, y_pred, average='macro') 
-    recall = recall_score(y_true, y_pred, average='macro')
-    f1 = f1_score(y_true, y_pred, average='macro')
-    vals = [ndcg, acc, precision, recall, f1]
+    conf_matrix = confusion_matrix(y_true, y_pred)
+    tp = np.diag(conf_matrix)
+    col_sum = np.sum(axis=0)
+    row_sum = np.sum(axis=1)
+    precision = np.divide(tp, col_sum, out=np.zeros_like(tp), where=col_sum!=0)
+    recall = np.divide(tp, row_sum, out=np.zeros_like(tp), where=row_sum!=0)
+    macro_precision = np.mean(precision)
+    macro_recall = np.mean(recall)
+    f1 = np.mean(2 * (precision * recall) / (precision + recall))
+    vals = [ndcg, acc, precision, recall, macro_precision, macro_recall, f1]
     return {metric:val for metric, val in zip(metrics, vals)}
 

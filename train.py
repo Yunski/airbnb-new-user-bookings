@@ -12,7 +12,6 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score
-from sklearn.svm import LinearSVC
 from sklearn.tree import DecisionTreeClassifier
 
 from utils import get_train, evaluate
@@ -42,8 +41,6 @@ def train(model, oversampling_method, k_folds, data_dir, results_dir, device='cp
                   "max_bin": 16,
                   "tree_method": "gpu_hist",
                   "silent": 1}
-    if verbose:
-        params["silent"] = 0
 
     for k, (train_index, test_index) in enumerate(kf.split(X_train)):
         print("Processing Fold {} out of {}".format(k+1, k_folds))
@@ -108,19 +105,12 @@ def train(model, oversampling_method, k_folds, data_dir, results_dir, device='cp
             result = evaluate(Y_testCV, Y_probs)
             print(result)
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
-        elif model == "svm":
-            clf = LinearSVC().fit(X_train_resampled, Y_train_resampled)
-            print("Time taken: {:.2f}".format(time.time()-curr_time))
-            Y_dist = -np.abs(clf.decision_function(X_testCV))
-            result = evaluate(Y_testCV, Y_dist) 
-            print(result)
-            pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
         else:
-            models = ["xgb", "svm", "ada", "forest", "tree", "logistic"]
-            for model in models:
+            models = ["xgb", "ada", "forest", "tree", "logistic"]
+            for m in models:
                 print("Training {}...".format(model))
                 curr_time = time.time()
-                if model == "xgb":
+                if m == "xgb":
                     X_train_xgb = xgb.DMatrix(X_train_resampled, Y_train_resampled, feature_names=feature_labels)
                     X_test_xgb  = xgb.DMatrix(X_testCV, feature_names=feature_labels)      
                     clf = xgb.train(params, X_train_xgb, 30)
@@ -129,28 +119,21 @@ def train(model, oversampling_method, k_folds, data_dir, results_dir, device='cp
                     result = evaluate(Y_testCV, Y_probs)
                     print(result)
                     pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
-                elif model == "svm":
-                    clf = LinearSVC().fit(X_train_resampled, Y_train_resampled)
-                    print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
-                    Y_dist = -np.abs(clf.decision_function(X_testCV)) 
-                    result = evaluate(Y_testCV, Y_dist)
-                    print(result)
-                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
-                elif model == "ada":
+                elif m == "ada":
                     clf = AdaBoostClassifier(n_estimators=30).fit(X_train_resampled, Y_train_resampled)
                     print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
                     Y_probs = clf.predict_proba(X_testCV)
                     result = evaluate(Y_testCV, Y_probs)  
                     print(result)
                     pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
-                elif model == "forest":
+                elif m == "forest":
                     clf = RandomForestClassifier(n_estimators=30).fit(X_train_resampled, Y_train_resampled)
                     print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
                     Y_probs = clf.predict_proba(X_testCV)
                     result = evaluate(Y_testCV, Y_probs)
                     print(result)
                     pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, oversampling_method, k+1)), "wb" )) 
-                elif model == "tree":
+                elif m == "tree":
                     clf = DecisionTreeClassifier(min_samples_split=2, min_samples_leaf=5).fit(X_train_resampled, Y_train_resampled)
                     print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
                     Y_probs = clf.predict_proba(X_testCV)
@@ -172,7 +155,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', help='data directory', dest='data_dir', type=str, default="data")
     parser.add_argument('-s', help='results save directory', dest='results_dir', type=str, default="results")
     parser.add_argument('-m', help='model', dest="model", type=str, default="all", 
-                        choices=["all", "logistic", "svm", "tree", "forest", "ada", "xgb"])
+                        choices=["all", "logistic", "tree", "forest", "ada", "xgb"])
     parser.add_argument('-o', help='oversampling method', dest='oversampling_method', type=str, default="smote", 
                         choices=["random", "smote", "adasyn", "none"])
     parser.add_argument('-k', help='number of CV folds', dest='k_folds', type=int, default=5)
