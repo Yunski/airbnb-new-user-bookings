@@ -91,7 +91,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
         elif model == "xgb":
             X_train_xgb = xgb.DMatrix(X_train_resampled, Y_train_resampled, feature_names=feature_labels)
             X_test_xgb  = xgb.DMatrix(X_testCV, feature_names=feature_labels)
-            clf = xgb.train(params, X_train_xgb, 20)
+            clf = xgb.train(params, X_train_xgb, 30)
             print("Time taken: {:.2f}".format(time.time()-curr_time))
             Y_probs = clf.predict(X_test_xgb)
             result = evaluate(Y_testCV, Y_probs)
@@ -110,7 +110,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
             pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
         elif model == "forest":
-            clf = RandomForestClassifier(n_estimators=22).fit(X_train_resampled, Y_train_resampled)
+            clf = RandomForestClassifier(n_estimators=30, n_jobs=2).fit(X_train_resampled, Y_train_resampled)
             print("Time taken: {:.2f}".format(time.time()-curr_time))
             Y_probs = clf.predict_proba(X_testCV)
             result = evaluate(Y_testCV, Y_probs)
@@ -146,7 +146,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
                     pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
                     pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
                 elif m == "forest":
-                    clf = RandomForestClassifier(n_estimators=30).fit(X_train_resampled, Y_train_resampled)
+                    clf = RandomForestClassifier(n_estimators=30, n_jobs=2).fit(X_train_resampled, Y_train_resampled)
                     print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
                     Y_probs = clf.predict_proba(X_testCV)
                     result = evaluate(Y_testCV, Y_probs)
