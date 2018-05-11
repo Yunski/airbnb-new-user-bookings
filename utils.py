@@ -56,7 +56,7 @@ def evaluate(y_true, y_score):
     f1_num = 2 * (precision * recall)
     f1_denom = precision + recall
     f1 = np.divide(f1_num, f1_denom, out=np.repeat(-2.0, len(f1_num)), where=f1_denom > 0)
-    if nan_p or nan_r:
+    if nan_p or nan_r or np.any(f1 < 0):
         macro_f1 = np.nan
     else:
         macro_f1 = np.mean(f1)
