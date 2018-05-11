@@ -67,7 +67,7 @@ def train(sampling_method, k_folds, data_dir, results_dir, device='cpu', verbose
         result = evaluate(Y_testCV, Y_probs)
         feature_imp = gbm.feature_importance(importance_type='gain')
         feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
-        pickle.dump(feature_imp, open(os.path.join(results_dir, "lgbm_feature_imp_fold_{}.p".format(k+1)), "wb" ))
+        pickle.dump(feature_imp, open(os.path.join(results_dir, "lgbm_{}_feature_imp_fold_{}.p".format(sampling_method, k+1)), "wb" ))
         print(result)
         pickle.dump(result, open(os.path.join(results_dir, "lgbm_{}_fold_{}.p".format(sampling_method, k+1)), "wb" )) 
 

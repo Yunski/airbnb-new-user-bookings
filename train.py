@@ -79,7 +79,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
             print(result)
             feature_imp = clf.feature_importances_
             feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
-            pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_feature_imp_fold_{}.p".format(model, k+1)), "wb" ))
+            pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
         elif model == "logistic":
             clf = LogisticRegression(penalty="l2", C=1).fit(X_train_resampled, Y_train_resampled)
@@ -97,7 +97,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
             result = evaluate(Y_testCV, Y_probs)
             print(result)
             feature_imp = clf.get_score(importance_type='gain')
-            pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_feature_imp_fold_{}.p".format(model, k+1)), "wb" ))
+            pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
         elif model == "ada":
             clf = AdaBoostClassifier(n_estimators=30).fit(X_train_resampled, Y_train_resampled)
@@ -107,7 +107,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
             print(result)
             feature_imp = clf.feature_importances_
             feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
-            pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_feature_imp_fold_{}.p".format(model, k+1)), "wb" ))
+            pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
         elif model == "forest":
             clf = RandomForestClassifier(n_estimators=22).fit(X_train_resampled, Y_train_resampled)
@@ -117,7 +117,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
             print(result)
             feature_imp = clf.feature_importances_
             feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
-            pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_feature_imp_fold_{}.p".format(model, k+1)), "wb" ))
+            pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
         else:
             models = ["xgb", "ada", "forest", "tree", "logistic"]
@@ -133,7 +133,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
                     result = evaluate(Y_testCV, Y_probs)
                     print(result)
                     feature_imp = clf.get_score(importance_type='gain')
-                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_feature_imp_fold_{}.p".format(model, k+1)), "wb" ))
+                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
                     pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
                 elif m == "ada":
                     clf = AdaBoostClassifier(n_estimators=30).fit(X_train_resampled, Y_train_resampled)
@@ -143,7 +143,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
                     print(result)
                     feature_imp = clf.feature_importances_
                     feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
-                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_feature_imp_fold_{}.p".format(model, k+1)), "wb" ))
+                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
                     pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
                 elif m == "forest":
                     clf = RandomForestClassifier(n_estimators=30).fit(X_train_resampled, Y_train_resampled)
@@ -153,7 +153,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
                     print(result)
                     feature_imp = clf.feature_importances_
                     feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
-                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_feature_imp_fold_{}.p".format(model, k+1)), "wb" ))
+                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
                     pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
                 elif m == "tree":
                     clf = DecisionTreeClassifier(min_samples_split=2, min_samples_leaf=5).fit(X_train_resampled, Y_train_resampled)
@@ -163,7 +163,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
                     print(result)
                     feature_imp = clf.feature_importances_
                     feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
-                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_feature_imp_fold_{}.p".format(model, k+1)), "wb" ))
+                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
                     pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
                 else:
                     clf = LogisticRegression(penalty="l2", C=1).fit(X_train_resampled, Y_train_resampled)
