@@ -136,14 +136,14 @@ def preprocess(data_dir, verbose=False):
 
     train_users = full_users[:n_train]
     test_users = full_users[n_train:]
-    train_users.reset_index(inplace=True)
-    test_users.reset_index(inplace=True)
-    
+    train_users.reset_index(drop=True, inplace=True)
+    test_users.reset_index(drop=True, inplace=True)
+
     train_users_lgb = full_users_lgb[:n_train]
     test_users_lgb = full_users_lgb[n_train:]
-    train_users_lgb.reset_index(inplace=True)
-    test_users_lgb.reset_index(inplace=True)   
-
+    train_users_lgb.reset_index(drop=True, inplace=True)
+    test_users_lgb.reset_index(drop=True, inplace=True)   
+ 
     train_ids.to_csv(os.path.join(data_dir, "train_ids.csv"), header=['id'], index=False) 
     test_ids.to_csv(os.path.join(data_dir, "test_ids.csv"), header=['id'], index=False)
 
