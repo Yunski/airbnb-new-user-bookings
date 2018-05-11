@@ -22,11 +22,12 @@ $ python preprocess.py
 ```
 Use the -d flag to change your data directory (default: 'data').
 ### Training Models
+To install lightgbm and xgboost, see the [lightgbm install guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html) and [xgboost install guide](http://xgboost.readthedocs.io/en/latest/build.html).
 ```
 $ python train.py -h
-usage: train.py [-h] [-d DATA_DIR] [-s RESULTS_DIR]
+usage: train.py [-h] [-d DATA_DIR] [-r RESULTS_DIR]
                 [-m {all,logistic,tree,forest,ada,xgb}]
-                [-o {random,smote,adasyn,none}] [-k K_FOLDS]
+                [-s {random,smote,adasyn,smoteenn,none}] [-k K_FOLDS]
                 [--device {cpu,gpu}]
 
 Airbnb New User Booking Classification
@@ -34,11 +35,11 @@ Airbnb New User Booking Classification
 optional arguments:
   -h, --help            show this help message and exit
   -d DATA_DIR           data directory
-  -s RESULTS_DIR        results save directory
+  -r RESULTS_DIR        results save directory
   -m {all,logistic,tree,forest,ada,xgb}
                         model
-  -o {random,smote,adasyn,none}
-                        oversampling method
+  -s {random,smote,adasyn,smoteenn,none}
+                        sampling method
   -k K_FOLDS            number of CV folds
   --device {cpu,gpu}    device
 ```
@@ -46,7 +47,9 @@ To use lightgbm, run:
 ```
 $ python lightgbm_train.py
 ```
-Note that gpu is not faster for such a small dataset.
-
 ### Results
-See cross validation output in the ```results``` directory in the form of pickle files.
+See cross validation output in the ```results``` directory in the form of pickle files. \
+To print a summary, run the following:
+```
+$ python summarize.py
+```
