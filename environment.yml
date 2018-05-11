@@ -1,4 +1,4 @@
-name: cos424-project
+name: airbnb-new-user-bookings
 channels:
   - https://conda.anaconda.org/menpo
   - conda-forge
