@@ -4,6 +4,7 @@ import argparse
 import pickle
 import time
 import os
+import lightgbm as lgb 
 import xgboost as xgb
 
 from imblearn.combine import SMOTEENN
@@ -15,32 +16,51 @@ from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score
 from sklearn.tree import DecisionTreeClassifier
 
-from utils import get_train, evaluate
+from utils import get_train, evaluate, save_examples
 
-def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', verbose=True):
+def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', use_international=False, verbose=True):
     start_time = time.time()
     if verbose:
         print("Using device: {}".format(device))
         print("Reading train data in...")
-    X_train, Y_train, feature_labels = get_train(data_dir)
+        if use_international:
+            print("Using international class.")
+    X_train, Y_train, feature_labels = get_train(data_dir, use_international=use_international)
     if verbose:
         print("Successfully loaded data")
 
     print("Starting Cross-Validation with {} folds...".format(k_folds))
-    kf = KFold(n_splits=k_folds, shuffle=True)
+    kf = KFold(n_splits=k_folds)
     kf.get_n_splits(X_train)
+    lgbm_params = {
+        'task': 'train',
+        'objective': 'multiclass',
+        'num_class': 12,
+        'num_leaves': 31,
+        'learning_rate': 0.05,
+        'feature_fraction': 0.9,
+        'bagging_fraction': 0.8,
+        'bagging_freq': 5,
+        'device': device,
+        'gpu_device_id': 0,
+        'gpu_platform_id': 0,
+        'max_bin': 63,
+        'verbose': 0
+    }
     if device == 'cpu':
-        params = {"objective": "multi:softprob", 
+        xgb_params = {"objective": "multi:softprob", 
                   "num_class": 12, 
                   "tree_method": "hist", 
+                  "colsample_bytree": 0.9,
                   "n_jobs": 2,
                   "silent": 1}
     else:
-        params = {"objective": "multi:softprob", 
+        xgb_params = {"objective": "multi:softprob", 
                   "num_class": 12,
+                  "tree_method": "gpu_hist",
+                  "colsample_bytree": 0.9,
                   "gpu_id": 0,
                   "max_bin": 16,
-                  "tree_method": "gpu_hist",
                   "silent": 1}
 
     for k, (train_index, test_index) in enumerate(kf.split(X_train)):
@@ -58,7 +78,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
         elif sampling_method == "smote":
             X_train_resampled, Y_train_resampled = SMOTE().fit_sample(X_trainCV, Y_trainCV)
         elif sampling_method == "random":
-            X_train_resampled, Y_train_resampled = RandomOverSampler(random_state=0).fit_sample(X_trainCV, Y_trainCV)
+            X_train_resampled, Y_train_resampled = RandomOverSampler().fit_sample(X_trainCV, Y_trainCV)
         elif sampling_method == "smoteenn":
             X_train_resampled, Y_train_resampled = SMOTEENN().fit_sample(X_trainCV, Y_trainCV)
         else:
@@ -81,6 +101,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
             feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
             pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
+            save_examples(X_testCV, Y_testCV, Y_probs, model, sampling_method, k+1, save_dir=results_dir)
         elif model == "logistic":
             clf = LogisticRegression(penalty="l2", C=1).fit(X_train_resampled, Y_train_resampled)
             print("Time taken: {:.2f}".format(time.time()-curr_time))
@@ -88,10 +109,11 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
             result = evaluate(Y_testCV, Y_probs)
             print(result)
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
+            save_examples(X_testCV, Y_testCV, Y_probs, model, sampling_method, k+1, save_dir=results_dir)
         elif model == "xgb":
             X_train_xgb = xgb.DMatrix(X_train_resampled, Y_train_resampled, feature_names=feature_labels)
             X_test_xgb  = xgb.DMatrix(X_testCV, feature_names=feature_labels)
-            clf = xgb.train(params, X_train_xgb, 30)
+            clf = xgb.train(xgb_params, X_train_xgb, 30)
             print("Time taken: {:.2f}".format(time.time()-curr_time))
             Y_probs = clf.predict(X_test_xgb)
             result = evaluate(Y_testCV, Y_probs)
@@ -99,6 +121,19 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
             feature_imp = clf.get_score(importance_type='gain')
             pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
+            save_examples(X_testCV, Y_testCV, Y_probs, model, sampling_method, k+1, save_dir=results_dir)
+        elif model == "lgbm":
+            lgb_train = lgb.Dataset(data=X_train_resampled, label=Y_train_resampled, feature_name=feature_labels)
+            clf = lgb.train(lgbm_params, lgb_train, num_boost_round=30) 
+            print("Time taken: {:.2f}".format(time.time()-curr_time))
+            Y_probs = clf.predict(X_testCV) 
+            result = evaluate(Y_testCV, Y_probs)
+            print(result)
+            feature_imp = clf.feature_importance(importance_type='gain') 
+            feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
+            pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
+            pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
+            save_examples(X_testCV, Y_testCV, Y_probs, model, sampling_method, k+1, save_dir=results_dir)
         elif model == "ada":
             clf = AdaBoostClassifier(n_estimators=30).fit(X_train_resampled, Y_train_resampled)
             print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
@@ -109,6 +144,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
             feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
             pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
+            save_examples(X_testCV, Y_testCV, Y_probs, model, sampling_method, k+1, save_dir=results_dir)
         elif model == "forest":
             clf = RandomForestClassifier(n_estimators=30, n_jobs=2).fit(X_train_resampled, Y_train_resampled)
             print("Time taken: {:.2f}".format(time.time()-curr_time))
@@ -119,59 +155,78 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
             feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
             pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
+            save_examples(X_testCV, Y_testCV, Y_probs, model, sampling_method, k+1, save_dir=results_dir)
         else:
-            models = ["xgb", "ada", "forest", "tree", "logistic"]
+            models = ["lgbm", "xgb", "ada", "forest", "tree", "logistic"]
             for m in models:
-                print("Training {}...".format(model))
+                print("Training {}...".format(m))
                 curr_time = time.time()
                 if m == "xgb":
                     X_train_xgb = xgb.DMatrix(X_train_resampled, Y_train_resampled, feature_names=feature_labels)
                     X_test_xgb  = xgb.DMatrix(X_testCV, feature_names=feature_labels)      
-                    clf = xgb.train(params, X_train_xgb, 30)
-                    print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
+                    clf = xgb.train(xgb_params, X_train_xgb, 30)
+                    print("Time taken for {}: {:.2f}".format(m, time.time()-curr_time))
                     Y_probs = clf.predict(X_test_xgb) 
                     result = evaluate(Y_testCV, Y_probs)
                     print(result)
                     feature_imp = clf.get_score(importance_type='gain')
-                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
-                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
+                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(m, sampling_method, k+1)), "wb" ))
+                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(m, sampling_method, k+1)), "wb" )) 
+                    save_examples(X_testCV, Y_testCV, Y_probs, m, sampling_method, k+1, save_dir=results_dir)
+                elif m == "lgbm":
+                    lgb_train = lgb.Dataset(data=X_train_resampled, label=Y_train_resampled, feature_name=feature_labels)
+                    clf = lgb.train(lgbm_params, lgb_train, num_boost_round=30) 
+                    print("Time taken for {}: {:.2f}".format(m, time.time()-curr_time))
+                    Y_probs = clf.predict(X_testCV) 
+                    result = evaluate(Y_testCV, Y_probs)
+                    print(result)
+                    feature_imp = clf.feature_importance(importance_type='gain') 
+                    feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
+                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(m, sampling_method, k+1)), "wb" ))
+                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(m, sampling_method, k+1)), "wb" )) 
+                    save_examples(X_testCV, Y_testCV, Y_probs, m, sampling_method, k+1, save_dir=results_dir)
                 elif m == "ada":
                     clf = AdaBoostClassifier(n_estimators=30).fit(X_train_resampled, Y_train_resampled)
-                    print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
+                    print("Time taken for {}: {:.2f}".format(m, time.time()-curr_time))
                     Y_probs = clf.predict_proba(X_testCV)
                     result = evaluate(Y_testCV, Y_probs)  
                     print(result)
                     feature_imp = clf.feature_importances_
                     feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
-                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
-                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
+                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(m, sampling_method, k+1)), "wb" ))
+                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(m, sampling_method, k+1)), "wb" )) 
+                    save_examples(X_testCV, Y_testCV, Y_probs, m, sampling_method, k+1, save_dir=results_dir)
                 elif m == "forest":
                     clf = RandomForestClassifier(n_estimators=30, n_jobs=2).fit(X_train_resampled, Y_train_resampled)
-                    print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
+                    print("Time taken for {}: {:.2f}".format(m, time.time()-curr_time))
                     Y_probs = clf.predict_proba(X_testCV)
                     result = evaluate(Y_testCV, Y_probs)
                     print(result)
                     feature_imp = clf.feature_importances_
                     feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
-                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
-                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
+                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(m, sampling_method, k+1)), "wb" ))
+                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(m, sampling_method, k+1)), "wb" )) 
+                    save_examples(X_testCV, Y_testCV, Y_probs, m, sampling_method, k+1, save_dir=results_dir)
                 elif m == "tree":
                     clf = DecisionTreeClassifier(min_samples_split=2, min_samples_leaf=5).fit(X_train_resampled, Y_train_resampled)
-                    print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
+                    print("Time taken for {}: {:.2f}".format(m, time.time()-curr_time))
                     Y_probs = clf.predict_proba(X_testCV)
                     result = evaluate(Y_testCV, Y_probs)
                     print(result)
                     feature_imp = clf.feature_importances_
                     feature_imp = {label: imp for label, imp in zip(feature_labels, feature_imp)}
-                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "wb" ))
-                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
+                    pickle.dump(feature_imp, open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(m, sampling_method, k+1)), "wb" ))
+                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(m, sampling_method, k+1)), "wb" )) 
+                    save_examples(X_testCV, Y_testCV, Y_probs, m, sampling_method, k+1, save_dir=results_dir)
                 else:
                     clf = LogisticRegression(penalty="l2", C=1).fit(X_train_resampled, Y_train_resampled)
-                    print("Time taken for {}: {:.2f}".format(model, time.time()-curr_time))
+                    print("Time taken for {}: {:.2f}".format(m, time.time()-curr_time))
                     Y_probs = clf.predict_proba(X_testCV)
                     result = evaluate(Y_testCV, Y_probs)
                     print(result)
-                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
+                    pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(m, sampling_method, k+1)), "wb" )) 
+                    save_examples(X_testCV, Y_testCV, Y_probs, m, sampling_method, k+1, save_dir=results_dir)
+
     print("Training took {:.2f}s.".format(time.time()-start_time))
     print("Finished.")
     
@@ -180,12 +235,25 @@ if __name__ == '__main__':
     parser.add_argument('-d', help='data directory', dest='data_dir', type=str, default="data")
     parser.add_argument('-r', help='results save directory', dest='results_dir', type=str, default="results")
     parser.add_argument('-m', help='model', dest="model", type=str, default="all", 
-                        choices=["all", "logistic", "tree", "forest", "ada", "xgb"])
+                        choices=["all", "logistic", "tree", "forest", "ada", "xgb", "lgbm"])
     parser.add_argument('-s', help='sampling method', dest='sampling_method', type=str, default="smote", 
                         choices=["random", "smote", "adasyn", "smoteenn", "none"])
     parser.add_argument('-k', help='number of CV folds', dest='k_folds', type=int, default=5)
+    parser.add_argument('--international', help='group minority classes into international class', dest='international', action='store_true')
     parser.add_argument('--device', help='device', dest='device', type=str, default="cpu", choices=["cpu", "gpu"])
     args = parser.parse_args()
 
-    train(args.model, args.sampling_method, args.k_folds, args.data_dir, args.results_dir, args.device, verbose=True)
+    if not os.path.isdir(args.data_dir):
+        os.mkdir(args.data_dir)
+    if not os.path.isdir(args.results_dir):
+        os.mkdir(args.results_dir)
+    if args.international:
+        results_dir = os.path.join(args.results_dir, "multiclass-3")
+        if not os.path.isdir(results_dir):
+            os.mkdir(results_dir)
+    else:
+        results_dir = os.path.join(args.results_dir, "multiclass-12")
+        if not os.path.isdir(results_dir):
+            os.mkdir(results_dir)
+    train(args.model, args.sampling_method, args.k_folds, args.data_dir, results_dir, args.device, args.international, verbose=True)
 
