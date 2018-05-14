@@ -5,7 +5,7 @@ import numpy as np
 
 from utils import get_train, get_country_names
 
-def summary(model, sampling_method, k_folds, use_international, data_dir, results_dir, verbose=True):
+def summary(model, sampling_method, k_folds, use_international, cat_code, data_dir, results_dir, verbose=True):
     print("model: {} - sampling method: {}".format(model, sampling_method))
     aggregate = {}
     for k in range(k_folds):
@@ -26,7 +26,7 @@ def summary(model, sampling_method, k_folds, use_international, data_dir, result
     if model == 'logistic':
         print("feature importance not implemented for logistic regression")
         return
-    features, labels, feature_labels = get_train(data_dir, use_international=use_international)
+    features, labels, feature_labels = get_train(data_dir, one_hot=not cat_code, use_international=use_international)
     country_names = get_country_names(data_dir)
     if use_international:
         country_names = country_names[:2].tolist() + ['international']
@@ -58,11 +58,12 @@ if __name__ == '__main__':
     parser.add_argument('-d', help='data directory', dest='data_dir', type=str, default="data")
     parser.add_argument('-r', help='results save directory', dest='results_dir', type=str, default="results")
     parser.add_argument('-k', help='number of CV folds', dest='k_folds', type=int, default=5)
+    parser.add_argument('--cat_code', help='use category codes instead of one hot', dest='cat_code', action='store_true')
     parser.add_argument('--international', help='group minority classes into international class', dest='international', action='store_true')
     args = parser.parse_args()
     if args.international:
-        results_dir = os.path.join(args.results_dir, "multiclass-3")
+        results_dir = os.path.join(args.results_dir, "binary")
     else:
-        results_dir = os.path.join(args.results_dir, "multiclass-12")
-    summary(args.model, args.sampling_method, args.k_folds, args.international, args.data_dir, results_dir, verbose=True)
+        results_dir = os.path.join(args.results_dir, "multiclass")
+    summary(args.model, args.sampling_method, args.k_folds, args.international, args.cat_code, args.data_dir, results_dir, verbose=True)
  

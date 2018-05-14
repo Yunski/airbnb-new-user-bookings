@@ -120,6 +120,7 @@ def preprocess(data_dir, verbose=False):
     full_users_lgb[categorical_columns] = full_users_lgb[categorical_columns].where(full_users_lgb[categorical_columns] >=0, 999)
     full_users = pd.get_dummies(full_users, columns=categories, prefix=categories)
     full_users.columns = full_users.columns.str.replace('\s+', '-')
+    full_users_lgb.columns = full_users_lgb.columns.str.replace('\s+', '-')
     if verbose:
         print("One-hot encoding")
         print(full_users.shape) 
