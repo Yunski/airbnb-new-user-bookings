@@ -25,7 +25,9 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
         print("Reading train data in...")
         if use_international:
             print("Using international class.")
+
     X_train, Y_train, feature_labels = get_train(data_dir, use_international=use_international)
+ 
     if verbose:
         print("Successfully loaded data")
 
@@ -157,7 +159,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
             save_examples(X_testCV, Y_testCV, Y_probs, model, sampling_method, k+1, save_dir=results_dir)
         else:
-            models = ["lgbm", "xgb", "ada", "forest", "tree", "logistic"]
+            models = ["xgb", "ada", "forest", "tree", "logistic"] # for lgbm use lgbm_train.py
             for m in models:
                 print("Training {}...".format(m))
                 curr_time = time.time()
@@ -248,12 +250,14 @@ if __name__ == '__main__':
     if not os.path.isdir(args.results_dir):
         os.mkdir(args.results_dir)
     if args.international:
-        results_dir = os.path.join(args.results_dir, "multiclass-3")
+        results_dir = os.path.join(args.results_dir, "binary")
         if not os.path.isdir(results_dir):
             os.mkdir(results_dir)
+        sampling_method = 'none'
     else:
-        results_dir = os.path.join(args.results_dir, "multiclass-12")
+        results_dir = os.path.join(args.results_dir, "multiclass")
         if not os.path.isdir(results_dir):
             os.mkdir(results_dir)
-    train(args.model, args.sampling_method, args.k_folds, args.data_dir, results_dir, args.device, args.international, verbose=True)
+        sampling_method = args.sampling_method
+    train(args.model, sampling_method, args.k_folds, args.data_dir, results_dir, args.device, args.international, verbose=True)
 

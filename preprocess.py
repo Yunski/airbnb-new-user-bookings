@@ -67,6 +67,7 @@ def preprocess(data_dir, verbose=False):
     std = full_users['age'].std()
     n_missing = full_users['age'].isnull().sum()
     full_users.loc[full_users['age'].isnull(), 'age'] = np.random.normal(loc=mean, scale=std, size=n_missing).astype(int)
+    full_users.loc[full_users['age'] < 0, 'age'] = 0
     bkt_labels = ["0-4", "5-9", "10-14", "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54", "55-59", "60-64", "65-69", "70-74", "75-79", "80-84", "85-89", "90-94", "95-99", "100+"]
     bins = [0, 4, 9, 14, 19, 24, 29, 34, 39, 44, 49, 54, 59, 64, 69, 74, 79, 84, 89, 94, 99, full_users['age'].max()]
     full_users['age_bucket'] = pd.cut(full_users['age'], bins=bins, labels=bkt_labels, right=True)    
@@ -116,6 +117,7 @@ def preprocess(data_dir, verbose=False):
     full_users_lgb = full_users.copy()
     categorical_columns = full_users_lgb.select_dtypes(['category']).columns
     full_users_lgb[categorical_columns] = full_users_lgb[categorical_columns].apply(lambda x: x.cat.codes)
+    full_users_lgb[categorical_columns] = full_users_lgb[categorical_columns].where(full_users_lgb[categorical_columns] >=0, 999)
     full_users = pd.get_dummies(full_users, columns=categories, prefix=categories)
     full_users.columns = full_users.columns.str.replace('\s+', '-')
     if verbose:

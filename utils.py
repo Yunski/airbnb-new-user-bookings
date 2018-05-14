@@ -15,6 +15,9 @@ def get_train(data_dir, one_hot=True, use_international=False):
     feature_labels = train.columns.copy().tolist()
     train_labels = np.load(os.path.join(data_dir, "train_labels.npy"))
     if use_international:
+        ndf_idx = np.array(train_labels == 0)
+        train_features = train_features[~ndf_idx]
+        train_labels = train_labels[~ndf_idx]
         train_labels[train_labels > 2] = 2 
     train_features, train_labels = shuffle(train_features, train_labels)
     return train_features, train_labels, feature_labels
@@ -41,28 +44,36 @@ def ndcg_score(y_true, y_score, k=5):
     return np.sum((2**rel-1) / discounts, axis=1)   
 
 def evaluate(y_true, y_score):
-    metrics = ["ndcg", "ndcg_fold", "acc", "confusion_matrix", 
-               "precision", "recall", "num_class_p", "f1", 
-               "macro_precision", "macro_recall", "macro_f1"]
     y_pred = np.argmax(y_score, axis=1)
-    ndcg = ndcg_score(y_true, y_score)
-    ndcg_fold = np.mean(ndcg)
-    acc = accuracy_score(y_true, y_pred)
-    conf_matrix = confusion_matrix(y_true, y_pred)
-    tp = np.diag(conf_matrix).astype(np.float64)
-    col_sum = np.sum(conf_matrix, axis=0)
-    row_sum = np.sum(conf_matrix, axis=1)
-    precision = np.divide(tp, col_sum, out=np.zeros_like(tp), where=col_sum!=0)
-    recall = np.divide(tp, row_sum, out=np.zeros_like(tp), where=row_sum!=0)
-    num_classes_in_precision = np.sum(col_sum > 0)
-    f1_num = 2 * (precision * recall)
-    f1_denom = precision + recall
-    f1 = np.divide(f1_num, f1_denom, out=np.zeros_like(f1_num), where=f1_denom!=0)
-    macro_precision = np.mean(precision) 
-    macro_recall = np.mean(recall)
-    macro_f1 = 2 * (macro_precision * macro_recall) / (macro_precision + macro_recall)
-    vals = [ndcg, ndcg_fold, acc, conf_matrix, precision, recall, 
-            num_classes_in_precision, f1, macro_precision, macro_recall, macro_f1]
+    if len(np.unique(y_true)) > 2:
+        metrics = ["ndcg", "ndcg_fold", "acc", "confusion_matrix", 
+                   "precision", "recall", "num_class_p", "f1", 
+                   "macro_precision", "macro_recall", "macro_f1"]
+        ndcg = ndcg_score(y_true, y_score)
+        ndcg_fold = np.mean(ndcg)
+        acc = accuracy_score(y_true, y_pred)
+        conf_matrix = confusion_matrix(y_true, y_pred)
+        tp = np.diag(conf_matrix).astype(np.float64)
+        col_sum = np.sum(conf_matrix, axis=0)
+        row_sum = np.sum(conf_matrix, axis=1)
+        precision = np.divide(tp, col_sum, out=np.zeros_like(tp), where=col_sum!=0)
+        recall = np.divide(tp, row_sum, out=np.zeros_like(tp), where=row_sum!=0)
+        num_classes_in_precision = np.sum(col_sum > 0)
+        f1_num = 2 * (precision * recall)
+        f1_denom = precision + recall
+        f1 = np.divide(f1_num, f1_denom, out=np.zeros_like(f1_num), where=f1_denom!=0)
+        macro_precision = np.mean(precision) 
+        macro_recall = np.mean(recall)
+        macro_f1 = 2 * (macro_precision * macro_recall) / (macro_precision + macro_recall)
+        vals = [ndcg, ndcg_fold, acc, conf_matrix, precision, recall, 
+                num_classes_in_precision, f1, macro_precision, macro_recall, macro_f1]
+    else:
+        metrics = ["acc", "precision", "recall", "f1"]
+        acc = accuracy_score(y_true, y_pred)
+        precision = precision_score(y_true, y_pred)
+        recall = recall_score(y_true, y_pred)
+        f1 = f1_score(y_true, y_pred)
+        vals = [acc, precision, recall, f1]
     return {metric: np.around(val, 4) for metric, val in zip(metrics, vals)}
 
 def save_examples(X, y_true, y_score, model, sampling_method, fold, save_dir="results"):
@@ -72,9 +83,10 @@ def save_examples(X, y_true, y_score, model, sampling_method, fold, save_dir="re
     correct_samples = X[correct_pred]
     classes_with_correct_pred = y_true[correct_pred]
     counts_correct = np.bincount(classes_with_correct_pred).astype(np.float64)
-    top_three_classes = np.argsort(-counts_correct / label_counts[:len(counts_correct)])[:3]
+    num_classes = min(3, len(np.unique(classes_with_correct_pred)))
+    top_classes = np.argsort(-counts_correct / label_counts[:len(counts_correct)])[:3]
     samples_to_save = []
-    for label in top_three_classes:
+    for label in top_classes:
         samples = correct_samples[classes_with_correct_pred == label]
         sample = samples[np.random.choice(np.arange(len(samples)))]
         samples_to_save.append({'features': sample, 'label': label})
@@ -83,9 +95,10 @@ def save_examples(X, y_true, y_score, model, sampling_method, fold, save_dir="re
     incorrect_samples = X[incorrect_pred]
     classes_with_incorrect_pred = y_true[incorrect_pred]
     counts_incorrect = np.bincount(classes_with_incorrect_pred).astype(np.float64)
-    top_three_classes = np.argsort(-counts_incorrect / label_counts[:len(counts_incorrect)])[:3]
+    num_classes = min(3, len(np.unique(classes_with_incorrect_pred)))
+    top_classes = np.argsort(-counts_incorrect / label_counts[:len(counts_incorrect)])[:3]
     samples_to_save = []
-    for label in top_three_classes:
+    for label in top_classes:
         samples = incorrect_samples[classes_with_incorrect_pred == label]
         sample = samples[np.random.choice(np.arange(len(samples)))]
         samples_to_save.append({'features': sample, 'label': label})
