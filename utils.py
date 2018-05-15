@@ -18,7 +18,8 @@ def get_train(data_dir, one_hot=True, use_international=False):
         ndf_idx = np.array(train_labels == 0)
         train_features = train_features[~ndf_idx]
         train_labels = train_labels[~ndf_idx]
-        train_labels[train_labels > 2] = 2 
+        train_labels[train_labels == 1] = 0
+        train_labels[train_labels >= 2] = 1
     train_features, train_labels = shuffle(train_features, train_labels)
     return train_features, train_labels, feature_labels
 
@@ -44,7 +45,10 @@ def ndcg_score(y_true, y_score, k=5):
     return np.sum((2**rel-1) / discounts, axis=1)   
 
 def evaluate(y_true, y_score):
-    y_pred = np.argmax(y_score, axis=1)
+    if y_score.ndim == 1:
+        y_pred = np.rint(y_score)
+    else:
+        y_pred = np.argmax(y_score, axis=1)
     if len(np.unique(y_true)) > 2:
         metrics = ["ndcg", "ndcg_fold", "acc", "confusion_matrix", 
                    "precision", "recall", "num_class_p", "f1", 
@@ -78,13 +82,16 @@ def evaluate(y_true, y_score):
 
 def save_examples(X, y_true, y_score, model, sampling_method, fold, save_dir="results"):
     label_counts = np.bincount(y_true)
-    y_pred = np.argmax(y_score, axis=1) 
+    if y_score.ndim == 1:
+        y_pred = np.rint(y_score)
+    else:
+        y_pred = np.argmax(y_score, axis=1) 
     correct_pred = np.array(y_true == y_pred)
     correct_samples = X[correct_pred]
     classes_with_correct_pred = y_true[correct_pred]
     counts_correct = np.bincount(classes_with_correct_pred).astype(np.float64)
     num_classes = min(3, len(np.unique(classes_with_correct_pred)))
-    top_classes = np.argsort(-counts_correct / label_counts[:len(counts_correct)])[:3]
+    top_classes = np.argsort(-counts_correct / label_counts[:len(counts_correct)])[:num_classes]
     samples_to_save = []
     for label in top_classes:
         samples = correct_samples[classes_with_correct_pred == label]
@@ -96,7 +103,7 @@ def save_examples(X, y_true, y_score, model, sampling_method, fold, save_dir="re
     classes_with_incorrect_pred = y_true[incorrect_pred]
     counts_incorrect = np.bincount(classes_with_incorrect_pred).astype(np.float64)
     num_classes = min(3, len(np.unique(classes_with_incorrect_pred)))
-    top_classes = np.argsort(-counts_incorrect / label_counts[:len(counts_incorrect)])[:3]
+    top_classes = np.argsort(-counts_incorrect / label_counts[:len(counts_incorrect)])[:num_classes]
     samples_to_save = []
     for label in top_classes:
         samples = incorrect_samples[classes_with_incorrect_pred == label]

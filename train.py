@@ -39,16 +39,19 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
         'objective': 'multiclass',
         'num_class': 12,
         'num_leaves': 31,
-        'learning_rate': 0.05,
+        'learning_rate': 0.1,
+        'lambda_l2': 1.0,
         'feature_fraction': 0.9,
-        'bagging_fraction': 0.8,
-        'bagging_freq': 5,
+        'min_child_weight': 1.0,
         'device': device,
         'gpu_device_id': 0,
         'gpu_platform_id': 0,
         'max_bin': 63,
         'verbose': 0
     }
+    if use_international:
+        lgbm_params['objective'] = 'binary'
+        del lgbm_params["num_class"]
     if device == 'cpu':
         xgb_params = {"objective": "multi:softprob", 
                   "num_class": 12, 
@@ -64,6 +67,9 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
                   "gpu_id": 0,
                   "max_bin": 16,
                   "silent": 1}
+    if use_international:
+        xgb_params["objective"] = "binary:logistic"
+        del xgb_params["num_class"]
 
     for k, (train_index, test_index) in enumerate(kf.split(X_train)):
         print("Processing Fold {} out of {}".format(k+1, k_folds))
@@ -108,6 +114,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
             clf = LogisticRegression(penalty="l2", C=1).fit(X_train_resampled, Y_train_resampled)
             print("Time taken: {:.2f}".format(time.time()-curr_time))
             Y_probs = clf.predict_proba(X_testCV)
+            assert(np.all(np.argmax(Y_probs, axis=1) == clf.predict(X_testCV)))
             result = evaluate(Y_testCV, Y_probs)
             print(result)
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
@@ -159,7 +166,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
             pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(model, sampling_method, k+1)), "wb" )) 
             save_examples(X_testCV, Y_testCV, Y_probs, model, sampling_method, k+1, save_dir=results_dir)
         else:
-            models = ["xgb", "ada", "forest", "tree", "logistic"] # for lgbm use lgbm_train.py
+            models = ["lgbm", "xgb", "ada", "forest", "tree", "logistic"] # for category codes instead of one hot, use lgbm_train.py
             for m in models:
                 print("Training {}...".format(m))
                 curr_time = time.time()
@@ -221,7 +228,7 @@ def train(model, sampling_method, k_folds, data_dir, results_dir, device='cpu', 
                     pickle.dump(result, open(os.path.join(results_dir, "{}_{}_fold_{}.p".format(m, sampling_method, k+1)), "wb" )) 
                     save_examples(X_testCV, Y_testCV, Y_probs, m, sampling_method, k+1, save_dir=results_dir)
                 else:
-                    clf = LogisticRegression(penalty="l2", C=1).fit(X_train_resampled, Y_train_resampled)
+                    clf = LogisticRegression(penalty="l2").fit(X_train_resampled, Y_train_resampled)
                     print("Time taken for {}: {:.2f}".format(m, time.time()-curr_time))
                     Y_probs = clf.predict_proba(X_testCV)
                     result = evaluate(Y_testCV, Y_probs)
@@ -253,11 +260,9 @@ if __name__ == '__main__':
         results_dir = os.path.join(args.results_dir, "binary")
         if not os.path.isdir(results_dir):
             os.mkdir(results_dir)
-        sampling_method = 'none'
     else:
         results_dir = os.path.join(args.results_dir, "multiclass")
         if not os.path.isdir(results_dir):
             os.mkdir(results_dir)
-        sampling_method = args.sampling_method
-    train(args.model, sampling_method, args.k_folds, args.data_dir, results_dir, args.device, args.international, verbose=True)
+    train(args.model, args.sampling_method, args.k_folds, args.data_dir, results_dir, args.device, args.international, verbose=True)
 

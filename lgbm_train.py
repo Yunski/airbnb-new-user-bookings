@@ -35,17 +35,20 @@ def train(sampling_method, k_folds, data_dir, results_dir, device='cpu', use_int
         'objective': 'multiclass',
         'num_class': 12,
         'num_leaves': 31,
-        'learning_rate': 0.05,
+        'lambda_l2': 0.1,
+        'learning_rate': 0.3,
         'feature_fraction': 0.9,
-        'bagging_fraction': 0.8,
-        'bagging_freq': 5,
+        'min_child_weight': 1.0,
         'device': device,
         'gpu_device_id': 0,
         'gpu_platform_id': 0,
         'max_bin': 63,
         'verbose': 0
     }
- 
+    if use_international:
+        params['objective'] = 'binary'
+        del params["num_class"]
+     
     for k, (train_index, test_index) in enumerate(kf.split(X_train)):
         print("Processing Fold {} out of {}".format(k+1, k_folds))
 
@@ -109,11 +112,9 @@ if __name__ == '__main__':
         results_dir = os.path.join(args.results_dir, "binary")
         if not os.path.isdir(results_dir):
             os.mkdir(results_dir)
-        sampling_method = 'none'
     else:
         results_dir = os.path.join(args.results_dir, "multiclass")
         if not os.path.isdir(results_dir):
             os.mkdir(results_dir)
-        sampling_method = args.sampling_method
-    train(sampling_method, args.k_folds, args.data_dir, results_dir, args.device, args.international, verbose=True)
+    train(args.sampling_method, args.k_folds, args.data_dir, results_dir, args.device, args.international, verbose=True)
 

@@ -36,6 +36,7 @@ def summary(model, sampling_method, k_folds, use_international, cat_code, data_d
         incorrect_examples = pickle.load(open(os.path.join(results_dir, "{}_{}_fold_{}_incorrect_examples.p".format(model, sampling_method, k+1)), "rb"))
         feature_imp = pickle.load(open(os.path.join(results_dir, "{}_{}_feature_imp_fold_{}.p".format(model, sampling_method, k+1)), "rb"))
         top_20 = [(label, feature_imp[label]) for label in sorted(feature_imp, key=feature_imp.get, reverse=True)][:20]
+        print(top_20)
         print("correct examples\n")
         for example in correct_examples:
             print("{} features\n".format(country_names[example['label']]))
