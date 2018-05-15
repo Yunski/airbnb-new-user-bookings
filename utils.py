@@ -89,26 +89,30 @@ def save_examples(X, y_true, y_score, model, sampling_method, fold, save_dir="re
     correct_pred = np.array(y_true == y_pred)
     correct_samples = X[correct_pred]
     classes_with_correct_pred = y_true[correct_pred]
+    y_pred_correct = y_pred[correct_pred]
     counts_correct = np.bincount(classes_with_correct_pred).astype(np.float64)
     num_classes = min(3, len(np.unique(classes_with_correct_pred)))
     top_classes = np.argsort(-counts_correct / label_counts[:len(counts_correct)])[:num_classes]
     samples_to_save = []
     for label in top_classes:
         samples = correct_samples[classes_with_correct_pred == label]
-        sample = samples[np.random.choice(np.arange(len(samples)))]
-        samples_to_save.append({'features': sample, 'label': label})
+        x = np.random.choice(np.arange(len(samples)))
+        sample, pred = samples[x], y_pred_correct[x]
+        samples_to_save.append({'features': sample, 'label': label, 'prediction': pred})
     pickle.dump(samples_to_save, open(os.path.join(save_dir, "{}_{}_fold_{}_correct_examples.p".format(model, sampling_method, fold)), "wb"))
     incorrect_pred = np.array(y_true != y_pred)
     incorrect_samples = X[incorrect_pred]
     classes_with_incorrect_pred = y_true[incorrect_pred]
+    y_pred_incorrect = y_pred[incorrect_pred]
     counts_incorrect = np.bincount(classes_with_incorrect_pred).astype(np.float64)
     num_classes = min(3, len(np.unique(classes_with_incorrect_pred)))
     top_classes = np.argsort(-counts_incorrect / label_counts[:len(counts_incorrect)])[:num_classes]
     samples_to_save = []
     for label in top_classes:
         samples = incorrect_samples[classes_with_incorrect_pred == label]
-        sample = samples[np.random.choice(np.arange(len(samples)))]
-        samples_to_save.append({'features': sample, 'label': label})
+        x = np.random.choice(np.arange(len(samples)))
+        sample, pred = samples[x], y_pred_incorrect[x]
+        samples_to_save.append({'features': sample, 'label': label, 'prediction': pred})
     pickle.dump(samples_to_save, open(os.path.join(save_dir, "{}_{}_fold_{}_incorrect_examples.p".format(model, sampling_method, fold)), "wb"))
     
 

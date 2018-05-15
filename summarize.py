@@ -46,7 +46,8 @@ def summary(model, sampling_method, k_folds, use_international, cat_code, data_d
             print("")
         print("\nincorrect examples\n")
         for example in incorrect_examples:
-            print("{} features\n".format(country_names[example['label']])) 
+            print("{} features".format(country_names[example['label']])) 
+            print("prediction was {}\n".format(country_names[example['prediction']]))
             feature_dict = { label: feature for label, feature in zip(feature_labels, example['features']) }
             for label, weight in top_20:
                 print("{},{}".format(label, feature_dict[label]))
