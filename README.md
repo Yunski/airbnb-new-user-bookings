@@ -2,7 +2,7 @@
 Predict which country a new user will make his or her first booking. \
 Link to the kaggle challenge: https://www.kaggle.com/c/airbnb-recruiting-new-user-bookings
 
-# Getting Started
+### Getting Started
 Install [anaconda](https://www.continuum.io/downloads) or [miniconda](https://conda.io/miniconda.html).
 Then create the environment with conda.
 ```
